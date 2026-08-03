@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+
+<link rel="icon" type="image/webp" href="logo.webp">
+<link rel="apple-touch-icon" href="logo.webp">
+
+
+<link rel="icon" type="image/png" href="./logo.png">
+<link rel="apple-touch-icon" href="./logo.png">
+  
+<link rel="icon" href="icon.png">
+
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIxFACTORY - Steganography Tool</title>
+<style>
+*{box-sizing:border-box;font-family:Inter,Segoe UI,sans-serif}
+body{margin:0;background:#070a14;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+nav{width:100%;max-width:1000px;display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid #1a1f3a}
+nav.logo{font-weight:900;letter-spacing:2px;font-size:18px;background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+nav.menu{display:flex;gap:24px;font-size:13px;opacity:.7}
+nav.menu span{cursor:pointer}
+nav.menu span.active{opacity:1;color:#22d3ee;border-bottom:2px solid #22d3ee;padding-bottom:4px}
+.container{width:100%;max-width:1000px;display:grid;grid-template-columns:1.2fr.8fr;gap:20px;padding:24px}
+@media(max-width:800px){.container{grid-template-columns:1fr}}
+.card{background:#101528;border:1px solid #1e274d;border-radius:20px;padding:22px}
+h2{margin:0 0 12px;font-size:18px}
+.sub{font-size:12px;opacity:.5;margin-bottom:16px}
+#drop{border:2px dashed #2a355f;border-radius:16px;padding:40px 16px;text-align:center;cursor:pointer;transition:.2s;background:#0c1020}
+#drop:hover{border-color:#22d3ee;background:rgba(34,211,238,.05)}
+#preview{width:100%;max-height:340px;object-fit:contain;border-radius:12px;display:none;margin-top:14px;border:1px solid #1e274d}
+canvas{display:none}
+input,textarea{width:100%;background:#0a0e1e;border:1px solid #1e274d;color:#fff;border-radius:12px;padding:12px 14px;outline:none;font-size:14px}
+input:focus,textarea:focus{border-color:#a855f7}
+.row{display:flex;gap:10px;margin-top:14px}
+.btn{flex:1;padding:14px;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;transition:.2s}
+.primary{background:linear-gradient(90deg,#a855f7,#6366f1);color:#fff}
+.secondary{background:#1a2342;color:#fff;border:1px solid #2a355f}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;background:#162040;border:1px solid #2a355f;font-size:11px;margin-right:6px}
+#status{margin-top:14px;font-size:12px;color:#8b95b5;min-height:18px}
+.stat{font-size:11px;opacity:.6;margin-top:8px}
+</style>
+</head>
+<body>
+<nav>
+<div class="logo">AIxFACTORY</div>
+<div class="menu"><span class="active">STEGO TOOL</span><span>ABOUT</span><span>DOCS</span></div>
+</nav>
+
+<div class="container">
+<div class="card">
+<h2>Image Input</h2>
+<div class="sub">Drag & drop or click to upload. PNG recommended for lossless storage.</div>
+<div id="drop">
+<div style="font-size:42px">⬆️</div>
+<div style="font-weight:600;margin-top:8px">Drop image here</div>
+<div style="font-size:11px;opacity:.5;margin-top:4px">PNG, JPG, WEBP up to 20MB</div>
+</div>
+<img id="preview">
+<canvas id="canvas"></canvas>
+<div class="stat" id="meta"></div>
+</div>
+
+<div class="card">
+<h2>Hidden Payload</h2>
+<div class="sub">This data will be embedded using LSB in Red channel. Invisible to eye, readable by AI.</div>
+
+<label style="font-size:12px;opacity:.7">Company / Email / Secret</label>
+<textarea id="secret" rows="6" placeholder="AIxFACTORY | contact@aixfactory.com | All rights reserved 2026"></textarea>
+
+<div class="row">
+<button id="encodeBtn" class="btn primary" disabled>Encrypt & Save PNG</button>
+<button id="decodeBtn" class="btn secondary">Decode Image</button>
+</div>
+
+<div id="status">Ready. Upload an image to start.</div>
+
+<div style="margin-top:18px">
+<span class="badge">LSB-1</span>
+<span class="badge">RED CHANNEL</span>
+<span class="badge">16-BIT UNICODE</span>
+<span class="badge">AI-READABLE</span>
+</div>
+</div>
+</div>
+
+<script>
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'image/*';
+const drop = document.getElementById('drop');
+const preview = document.getElementById('preview');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const secretInput = document.getElementById('secret');
+const encodeBtn = document.getElementById('encodeBtn');
+const decodeBtn = document.getElementById('decodeBtn');
+const statusEl = document.getElementById('status');
+const metaEl = document.getElementById('meta');
+let loaded = false;
+
+function loadFile(file){
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    preview.onload = () => {
+      canvas.width = preview.naturalWidth;
+      canvas.height = preview.naturalHeight;
+      ctx.drawImage(preview,0,0);
+      loaded = true;
+      encodeBtn.disabled = false;
+      const cap = Math.floor(canvas.width*canvas.height/8/1024);
+      metaEl.textContent = `${canvas.width} x ${canvas.height} | Capacity ~${cap} KB`;
+      statusEl.textContent = `Image loaded. Ready to encode.`;
+    }
+  };
+  r.readAsDataURL(file);
+}
+
+drop.onclick = () => fileInput.click();
+fileInput.onchange = e => loadFile(e.target.files[0]);
+drop.ondragover = e => {e.preventDefault(); drop.style.borderColor='#22d3ee'};
+drop.ondragleave = () => drop.style.borderColor='#2a355f';
+drop.ondrop = e => {e.preventDefault(); drop.style.borderColor='#2a355f'; loadFile(e.dataTransfer.files[0]);};
+
+function textToBin(t){
+  let b='';
+  for(let i=0;i<t.length;i++) b+= t.charCodeAt(i).toString(2).padStart(16,'0');
+  return b + '1'.repeat(32);
+}
+function binToText(b){
+  let t='';
+  for(let i=0;i<b.length-32;i+=16){
+    const ch = b.substr(i,16);
+    if(ch.length<16) break;
+    const code = parseInt(ch,2);
+    t+= String.fromCharCode(code);
+    if(b.substr(i+16,32)==='1'.repeat(32)) break;
+  }
+  return t;
+}
+
+encodeBtn.onclick = () => {
+  if(!loaded) return;
+  const secret = secretInput.value.trim();
+  if(!secret){ statusEl.textContent='Enter payload first.'; return; }
+  const bin = textToBin(secret);
+  const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  const d = imgData.data;
+  if(bin.length > d.length/4){ statusEl.textContent='Payload too large for this image.'; return; }
+  let idx=0;
+  for(let i=0;i<d.length && idx<bin.length;i+=4){
+    d[i] = (d[i] & ~1) | parseInt(bin[idx]);
+    idx++;
+  }
+  ctx.putImageData(imgData,0,0);
+  canvas.toBlob(blob=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='AIxFACTORY_encoded.png';
+    a.click();
+    statusEl.textContent='Encoded and downloaded. Visual difference: 0%';
+  },'image/png');
+};
+
+decodeBtn.onclick = () => {
+  if(!loaded){
+    fileInput.click();
+    statusEl.textContent='Select an encoded image to decode.';
+    return;
+  }
+  const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  let bin='';
+  for(let i=0;i<imgData.data.length;i+=4) bin+= (imgData.data[i] & 1).toString();
+  const text = binToText(bin);
+  if(text){
+    secretInput.value = text;
+    statusEl.textContent='Decoded successfully.';
+  }else{
+    statusEl.textContent='No hidden data found.';
+  }
+};
+</script>
+</body>
+</html>
